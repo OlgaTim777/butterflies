@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>MAGIC BUTTERFLIES</title>
+  <style>
+    :root{
+      --font: 'Segoe UI', Tahoma, Arial, sans-serif;
+    }
+    html,body{height:100%;margin:0;font-family:var(--font)}
+    body{
+      display:flex;align-items:center;justify-content:center; padding:20px;
+      background: url('img/background.png') center/cover no-repeat; /* фоновое изображение */
+    }
+
+    .game-wrap{
+      width:980px; max-width:98vw; height:640px; position:relative; border-radius:18px; overflow:hidden; box-shadow:0 20px 50px rgba(10,30,60,0.18);
+      background: rgba(255,255,255,0.2);
+    }
+
+    .hud{position:absolute;left:0;right:0;top:10px;display:flex;align-items:center;justify-content:space-between;padding:10px 18px;pointer-events:auto}
+    .title{font-size:28px;font-weight:800;color:#1a3550;letter-spacing:2px;text-shadow:0 2px 0 rgba(255,255,255,0.6)}
+    .info{display:flex; gap:14px; align-items:center}
+    .panel{background:rgba(255,255,255,0.6); padding:8px 14px;border-radius:12px;backdrop-filter: blur(6px);box-shadow:0 6px 14px rgba(10,30,60,0.08);display:flex;align-items:center;gap:10px}
+    .timer{font-size:20px;font-weight:700;color:#14324a}
+    .counters{font-size:14px;color:#153649}
+    .counters span{display:inline-block;margin-right:8px}
+
+    #playfield{position:absolute; left:8px; right:8px; top:72px; bottom:100px; background:transparent; border-radius:14px; overflow:hidden}
+
+    .butterfly{
+      position:absolute; width:100px; height:auto; pointer-events:auto; user-select:none; display:flex; align-items:center; justify-content:center; transform-origin:center center;
+      transition: transform 0.08s linear;
+    }
+    .butterfly img{width:100%;height:auto;pointer-events:none;}
+    .butterfly .label{position:absolute;top:8px;left:0;right:0;text-align:center;font-weight:700;font-size:12px;color:#123;text-shadow:0 1px 2px rgba(255,255,255,0.8)}
+
+    #net{position:absolute;pointer-events:none;transform:translate(-50%,-50%);}
+    #net img{width:120px;height:auto;}
+
+    .firefly-wrap{position:absolute;left:18px;right:18px;bottom:22px;display:flex;align-items:center;justify-content:center;pointer-events:none}
+    .firefly img{width:40px;height:auto;opacity:0;transition:opacity 0.3s ease;}
+    .firefly.on img{opacity:1;}
+
+    .overlay{position:absolute;inset:0;background:rgba(10,30,60,0.5);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity 300ms}
+    .overlay.show{opacity:1;pointer-events:auto}
+    .modal{background:rgba(255,255,255,0.98);padding:28px 40px;border-radius:18px;text-align:center;box-shadow:0 30px 60px rgba(10,30,60,0.25)}
+    .modal h2{margin:0;font-size:40px;color:#1a3550}
+  </style>
+</head>
+<body>
+  <div class="game-wrap" id="game">
+    <div class="hud">
+      <div>
+        <div class="title">MAGIC BUTTERFLIES</div>
+        <div style="font-size:12px;color:#234">Поймай правильные бабочки сачком курсором</div>
+      </div>
+      <div class="info">
+        <div class="panel">
+          <div class="timer">⏱ <span id="time">60</span>s</div>
+          <div class="counters">✅ <span id="correct">0</span> ❌ <span id="wrong">0</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="playfield"></div>
+
+    <div class="firefly-wrap">
+      <div class="firefly" id="fireflyGlow">
+        <img src="img/firefly.png" alt="firefly">
+      </div>
+    </div>
+
+    <div id="net">
+      <img src="img/net.png" alt="net">
+    </div>
+
+    <div class="overlay" id="overlay">
+      <div class="modal">
+        <h2>GOOD JOB!</h2>
+        <p id="finalText">Вы поймали бабочек!</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const MAX_BUTTERFLIES = 15;
+    const GAME_TIME = 60;
+
+    const correctWords = ['Солнце','Радуга','Цветок','Трава','День','Улыбка','Пчела','Лето','Тепло','Дружба'];
+    const wrongWords = ['Ключ','Лампа','Окно','Ручка','Стол','Книга','Камень','Кофе','Часы','Город'];
+
+    const playfield = document.getElementById('playfield');
+    const net = document.getElementById('net');
+    const timeEl = document.getElementById('time');
+    const correctEl = document.getElementById('correct');
+    const wrongEl = document.getElementById('wrong');
+    const firefly = document.getElementById('fireflyGlow');
+    const overlay = document.getElementById('overlay');
+    const finalText = document.getElementById('finalText');
+
+    let butterflies = new Map();
+    let nextId = 1;
+    let correctCount = 0, wrongCount = 0;
+    let timeLeft = GAME_TIME;
+    let gameRunning = true;
+
+    let mouse = {x:0,y:0};
+    window.addEventListener('mousemove', (e)=>{
+      const rect = playfield.getBoundingClientRect();
+      const nx = Math.max(rect.left, Math.min(e.clientX, rect.right));
+      const ny = Math.max(rect.top, Math.min(e.clientY, rect.bottom));
+      net.style.left = (nx - rect.left) + 'px';
+      net.style.top = (ny - rect.top) + 'px';
+    });
+
+    playfield.addEventListener('click', (e)=>{
+      if(!gameRunning) return;
+      const rect = playfield.getBoundingClientRect();
+      const cx = e.clientX - rect.left;
+      const cy = e.clientY - rect.top;
+      tryCatch(cx,cy);
+    });
+
+    function tryCatch(cx,cy){
+      const R = 52;
+      const caught = [];
+      for(const [id, b] of butterflies){
+        const dx = b.x - cx; const dy = b.y - cy; const dist = Math.sqrt(dx*dx+dy*dy);
+        if(dist < R){caught.push(id);}
+      }
+      if(caught.length===0) return;
+      const id = caught[0];
+      const obj = butterflies.get(id);
+      if(!obj) return;
+      removeButterfly(id);
+      if(obj.isCorrect){
+        correctCount++; correctEl.textContent = correctCount;
+        flashFirefly();
+      } else { wrongCount++; wrongEl.textContent = wrongCount; }
+      setTimeout(()=>spawnButterfly(), 220);
+    }
+
+    function flashFirefly(){
+      firefly.classList.add('on');
+      setTimeout(()=>firefly.classList.remove('on'), 550);
+    }
+
+    function spawnButterfly(){
+      if(!gameRunning) return;
+      if(butterflies.size >= MAX_BUTTERFLIES) return;
+      const id = nextId++;
+      const isCorrect = Math.random() < 0.5;
+      const word = isCorrect ? sample(correctWords) : sample(wrongWords);
+      const el = document.createElement('div'); el.className = 'butterfly'; el.dataset.id = id;
+      el.innerHTML = `<img src="img/butterfly.png" alt="Butterfly"><div class="label">${escapeHtml(word)}</div>`;
+      const rect = playfield.getBoundingClientRect();
+      const padding = 40;
+      const x = rand(padding, rect.width - padding);
+      const y = rand(padding, rect.height - padding);
+      el.style.left = (x - 44) + 'px';
+      el.style.top = (y - 30) + 'px';
+      playfield.appendChild(el);
+
+      const obj = {id, el, x, y, vx: randSign()*rand(5,18)/100, vy: randSign()*rand(3,14)/100, wobble: Math.random()*0.02+0.01, angle: Math.random()*Math.PI*2, isCorrect, word};
+      butterflies.set(id,obj);
+    }
+
+    function removeButterfly(id){
+      const obj = butterflies.get(id); if(!obj) return;
+      obj.el.style.transition = 'transform 220ms ease, opacity 220ms ease';
+      obj.el.style.transform = 'scale(0.2) translateY(10px)';
+      obj.el.style.opacity = '0';
+      setTimeout(()=>{if(obj.el && obj.el.parentElement) obj.el.parentElement.removeChild(obj.el);},260);
+      butterflies.delete(id);
+    }
+
+    function gameTick(){
+      const rect = playfield.getBoundingClientRect();
+      for(const [id, b] of butterflies){
+        b.angle += b.wobble;
+        b.x += b.vx + Math.sin(b.angle)*0.3;
+        b.y += b.vy + Math.cos(b.angle)*0.2;
+        const padding=36;
+        if(b.x < padding){ b.vx = Math.abs(b.vx); }
+        if(b.x > rect.width - padding){ b.vx = -Math.abs(b.vx); }
+        if(b.y < padding){ b.vy = Math.abs(b.vy); }
+        if(b.y > rect.height - padding){ b.vy = -Math.abs(b.vy); }
+        b.el.style.left = (b.x - 44) + 'px';
+        b.el.style.top = (b.y - 30) + 'px';
+        b.el.style.transform = `rotate(${b.vx*120}deg)`;
+      }
+      if(gameRunning) requestAnimationFrame(gameTick);
+    }
+
+    function startGame(){
+      for(let i=0;i<MAX_BUTTERFLIES;i++) spawnButterfly();
+      const timer = setInterval(()=>{
+        if(!gameRunning) { clearInterval(timer); return; }
+        timeLeft--; timeEl.textContent = timeLeft;
+        if(timeLeft<=0){ gameOver(); clearInterval(timer); }
+      },1000);
+      requestAnimationFrame(gameTick);
+    }
+
+    function gameOver(){
+      gameRunning = false;
+      overlay.classList.add('show');
+      finalText.textContent = `За 60 секунд: ✅ ${correctCount} ❌ ${wrongCount}`;
+    }
+
+    function rand(a,b){ return Math.floor(Math.random()*(b-a+1))+a; }
+    function randSign(){ return Math.random()<0.5? -1:1; }
+    function sample(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+    function escapeHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+    startGame();
+  </script>
+</body>
+</html>
