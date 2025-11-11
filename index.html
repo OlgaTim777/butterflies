@@ -11,7 +11,9 @@
     html,body{height:100%;margin:0;font-family:var(--font)}
     body{
       display:flex;align-items:center;justify-content:center;padding:20px;
-      background: url('https://i.imgur.com/heqNpdH.png') center/cover no-repeat;
+      background-position:center;
+      background-size:cover;
+      background-repeat:no-repeat;
       transition: background-image 0.4s ease;
     }
 
@@ -29,13 +31,8 @@
     .counters{font-size:14px;color:#153649}
     .counters span{display:inline-block;margin-right:8px}
 
-    /* Панель скрыта */
-    .settings {
-      display:none;
-      visibility:hidden;
-      opacity:0;
-      pointer-events:none;
-    }
+    /* Панель настроек — полностью скрыта */
+    .settings { display:none; visibility:hidden; opacity:0; pointer-events:none; }
 
     #playfield{position:absolute; left:8px; right:8px; top:72px; bottom:100px; background:transparent; border-radius:14px; overflow:hidden}
 
@@ -43,15 +40,17 @@
       position:absolute; width:100px; height:auto; pointer-events:auto; user-select:none; display:flex; align-items:center; justify-content:center; transform-origin:center center;
       transition: transform 0.08s linear;
     }
-    .butterfly: url('https://i.imgur.com/QA8Is2V.png')
+    .butterfly img{width:100px;height:auto;display:block;pointer-events:none;user-select:none}
     .butterfly .label{position:absolute;top:8px;left:0;right:0;text-align:center;font-weight:700;font-size:12px;color:#123;text-shadow:0 1px 2px rgba(255,255,255,0.8)}
 
-    #net{position:absolute;pointer-events:none;transform:translate(-50%,-50%);z-index:50;}
+    /* Курсор (сачок) — соединён верхней частью картинки */
+    #net{position:absolute;pointer-events:none;transform:translate(-50%,0);z-index:50;}
     #net img{width:120px;height:auto;display:block;pointer-events:none;}
 
-    .firefly-wrap{position:absolute;left:18px;right:18px;bottom:22px;display:flex;align-items:center;justify-content:center;pointer-events:none}
-    .firefly img{width:40px;height:auto;opacity:0;transition:opacity 0.3s ease;}
-    .firefly.on img{opacity:1;}
+    .firefly-wrap{position:absolute;left:18px;right:18px;bottom:22px;display:flex;align-items:center;justify-content:center;pointer-events:none;gap:6px}
+    .collected-fireflies{display:flex; gap:6px; align-items:center; pointer-events:none}
+    .collected-fireflies img{width:40px;height:auto;display:block;opacity:1;transition:transform 220ms}
+    .collected-fireflies img.added{transform:translateY(-6px);}
 
     .overlay{position:absolute;inset:0;background:rgba(10,30,60,0.5);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity 300ms}
     .overlay.show{opacity:1;pointer-events:auto}
@@ -74,12 +73,13 @@
       </div>
     </div>
 
-    <!-- Панель настроек (спрятана) -->
+    <!-- Настройки (скрытые, но можно редактировать прямо в HTML) -->
     <div class="settings">
-      <label>Фон: <input type="text" id="bgInput" placeholder="https://i.imgur.com/heqNpdH.png"></label>
-      <label>Бабочка: <input type="text" id="butterflyInput" placeholder="https://i.imgur.com/QA8Is2V.png"></label>
-      <label>Сачок: <input type="text" id="netInput" placeholder="https://i.imgur.com/Vk667Kj.png"></label>
-      <label>Светлячок: <input type="text" id="fireflyInput" placeholder="https://i.imgur.com/P6LWQyA.png"></label>
+      <!-- Меняйте URL внутри этого блока при необходимости -->
+      <label>Фон: <input type="hidden" id="bgInput" value="https://i.imgur.com/heqNpdH.png"></label>
+      <label>Бабочка: <input type="hidden" id="butterflyInput" value="https://i.imgur.com/QA8Is2V.png"></label>
+      <label>Сачок: <input type="hidden" id="netInput" value="https://i.imgur.com/Vk667Kj.png"></label>
+      <label>Светлячок: <input type="hidden" id="fireflyInput" value="https://i.imgur.com/P6LWQyA.png"></label>
     </div>
 
     <div id="playfield">
@@ -89,9 +89,7 @@
     </div>
 
     <div class="firefly-wrap">
-      <div class="firefly" id="fireflyGlow">
-        <img id="fireflyImg" src="https://i.imgur.com/P6LWQyA.png" alt="firefly">
-      </div>
+      <div class="collected-fireflies" id="collectedFireflies"></div>
     </div>
 
     <div class="overlay" id="overlay">
@@ -106,10 +104,10 @@
     const MAX_BUTTERFLIES = 15;
     const GAME_TIME = 60;
 
-    // Пути к изображениям
+    // Меняйте пути картинок прямо здесь (внутри HTML)
     let images = {
-      background: 'img/background.png',
-      butterfly: 'img/butterfly.png',
+      background: 'https://i.imgur.com/heqNpdH.png',
+      butterfly: 'https://i.imgur.com/QA8Is2V.png',
       net: 'https://i.imgur.com/Vk667Kj.png',
       firefly: 'https://i.imgur.com/P6LWQyA.png'
     };
@@ -123,24 +121,16 @@
     const timeEl = document.getElementById('time');
     const correctEl = document.getElementById('correct');
     const wrongEl = document.getElementById('wrong');
-    const firefly = document.getElementById('fireflyGlow');
-    const fireflyImg = document.getElementById('fireflyImg');
     const overlay = document.getElementById('overlay');
     const finalText = document.getElementById('finalText');
+    const collectedFireflies = document.getElementById('collectedFireflies');
 
-    // Элементы настроек (невидимы)
-    const bgInput = document.getElementById('bgInput');
-    const butterflyInput = document.getElementById('butterflyInput');
-    const netInput = document.getElementById('netInput');
-    const fireflyInput = document.getElementById('fireflyInput');
-
-    // Настройки можно менять из кода:
-    function setImages(newImages = {}) {
-      Object.assign(images, newImages);
+    // Применить изображения
+    function applyImages(){
       document.body.style.backgroundImage = `url('${images.background}')`;
       netImg.src = images.net;
-      fireflyImg.src = images.firefly;
     }
+    applyImages();
 
     let butterflies = new Map();
     let nextId = 1;
@@ -152,6 +142,7 @@
       const rect = playfield.getBoundingClientRect();
       const nx = Math.max(rect.left, Math.min(e.clientX, rect.right));
       const ny = Math.max(rect.top, Math.min(e.clientY, rect.bottom));
+      // Привязка к верхней части сачка (translate(-50%, 0) в CSS)
       net.style.left = (nx - rect.left) + 'px';
       net.style.top = (ny - rect.top) + 'px';
     });
@@ -178,14 +169,18 @@
       removeButterfly(id);
       if(obj.isCorrect){
         correctCount++; correctEl.textContent = correctCount;
-        flashFirefly();
+        addPermanentFirefly();
       } else { wrongCount++; wrongEl.textContent = wrongCount; }
       setTimeout(()=>spawnButterfly(), 220);
     }
 
-    function flashFirefly(){
-      firefly.classList.add('on');
-      setTimeout(()=>firefly.classList.remove('on'), 550);
+    function addPermanentFirefly(){
+      const img = document.createElement('img');
+      img.src = images.firefly;
+      img.alt = 'firefly';
+      img.classList.add('added');
+      collectedFireflies.appendChild(img);
+      setTimeout(()=>img.classList.remove('added'), 300);
     }
 
     function spawnButterfly(){
@@ -235,7 +230,7 @@
     }
 
     function startGame(){
-      for(let i=0;i<MAX_BUTTERFLIES;i++) spawnButterfly();
+      for(let i=0;i<8;i++) spawnButterfly();
       const timer = setInterval(()=>{
         if(!gameRunning) { clearInterval(timer); return; }
         timeLeft--; timeEl.textContent = timeLeft;
@@ -259,4 +254,3 @@
   </script>
 </body>
 </html>
-
