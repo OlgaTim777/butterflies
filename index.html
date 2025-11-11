@@ -10,16 +10,18 @@
     }
     html,body{height:100%;margin:0;font-family:var(--font)}
     body{
-      display:flex;align-items:center;justify-content:center; padding:20px;
-      background: url('img/background.png') center/cover no-repeat; /* фоновое изображение */
+      display:flex;align-items:center;justify-content:center;padding:20px;
+      background: url('img/background.png') center/cover no-repeat;
+      transition: background-image 0.4s ease;
     }
 
     .game-wrap{
-      width:980px; max-width:98vw; height:640px; position:relative; border-radius:18px; overflow:hidden; box-shadow:0 20px 50px rgba(10,30,60,0.18);
+      width:980px; max-width:98vw; height:640px; position:relative; border-radius:18px; overflow:hidden;
+      box-shadow:0 20px 50px rgba(10,30,60,0.18);
       background: rgba(255,255,255,0.2);
     }
 
-    .hud{position:absolute;left:0;right:0;top:10px;display:flex;align-items:center;justify-content:space-between;padding:10px 18px;pointer-events:auto}
+    .hud{position:absolute;left:0;right:0;top:10px;display:flex;align-items:center;justify-content:space-between;padding:10px 18px;pointer-events:auto;z-index:5}
     .title{font-size:28px;font-weight:800;color:#1a3550;letter-spacing:2px;text-shadow:0 2px 0 rgba(255,255,255,0.6)}
     .info{display:flex; gap:14px; align-items:center}
     .panel{background:rgba(255,255,255,0.6); padding:8px 14px;border-radius:12px;backdrop-filter: blur(6px);box-shadow:0 6px 14px rgba(10,30,60,0.08);display:flex;align-items:center;gap:10px}
@@ -27,17 +29,42 @@
     .counters{font-size:14px;color:#153649}
     .counters span{display:inline-block;margin-right:8px}
 
+    /* Панель настроек */
+    .settings {
+      position:absolute;
+      top:70px;
+      right:10px;
+      background:rgba(255,255,255,0.8);
+      border-radius:10px;
+      padding:8px 12px;
+      font-size:12px;
+      color:#123;
+      z-index:10;
+      box-shadow:0 4px 10px rgba(10,30,60,0.2);
+    }
+    .settings label {
+      display:block;
+      margin-top:4px;
+    }
+    .settings input {
+      width:220px;
+      font-size:11px;
+      border:1px solid #ccc;
+      border-radius:6px;
+      padding:2px 6px;
+    }
+
     #playfield{position:absolute; left:8px; right:8px; top:72px; bottom:100px; background:transparent; border-radius:14px; overflow:hidden}
 
     .butterfly{
       position:absolute; width:100px; height:auto; pointer-events:auto; user-select:none; display:flex; align-items:center; justify-content:center; transform-origin:center center;
       transition: transform 0.08s linear;
     }
-    .butterfly <img src="https://i.imgur.com/QA8Is2V.png" alt="butterfly">
+    .butterfly img{max-width:100%;height:auto;pointer-events:none;user-select:none;display:block;}
     .butterfly .label{position:absolute;top:8px;left:0;right:0;text-align:center;font-weight:700;font-size:12px;color:#123;text-shadow:0 1px 2px rgba(255,255,255,0.8)}
 
-    #net{position:absolute;pointer-events:none;transform:translate(-50%,-50%);}
-    #net img{width:120px;height:auto;}
+    #net{position:absolute;pointer-events:none;transform:translate(-50%,-50%);z-index:50;}
+    #net img{width:120px;height:auto;display:block;pointer-events:none;}
 
     .firefly-wrap{position:absolute;left:18px;right:18px;bottom:22px;display:flex;align-items:center;justify-content:center;pointer-events:none}
     .firefly img{width:40px;height:auto;opacity:0;transition:opacity 0.3s ease;}
@@ -64,16 +91,24 @@
       </div>
     </div>
 
-    <div id="playfield"></div>
+    <!-- Панель настроек -->
+    <div class="settings">
+      <label>Фон: <input type="text" id="bgInput" placeholder="https://i.imgur.com/heqNpdH.png"></label>
+      <label>Бабочка: <input type="text" id="butterflyInput" placeholder="https://i.imgur.com/QA8Is2V.png"></label>
+      <label>Сачок: <input type="text" id="netInput" placeholder="https://i.imgur.com/Vk667Kj.png"></label>
+      <label>Светлячок: <input type="text" id="fireflyInput" placeholder="https://i.imgur.com/P6LWQyA.png"></label>
+    </div>
 
-    <div class="firefly-wrap">
-      <div class="firefly" id="fireflyGlow">
-        <img src="https://i.imgur.com/P6LWQyA.png" alt="firefly">
+    <div id="playfield">
+      <div id="net">
+        <img id="netImg" src="https://i.imgur.com/Vk667Kj.png" alt="net">
       </div>
     </div>
 
-    <div id="net">
-      <img src="https://i.imgur.com/Vk667Kj.png" alt="net">
+    <div class="firefly-wrap">
+      <div class="firefly" id="fireflyGlow">
+        <img id="fireflyImg" src="https://i.imgur.com/P6LWQyA.png" alt="firefly">
+      </div>
     </div>
 
     <div class="overlay" id="overlay">
@@ -88,17 +123,51 @@
     const MAX_BUTTERFLIES = 15;
     const GAME_TIME = 60;
 
+    // Пути к изображениям
+    let images = {
+      background: 'img/background.png',
+      butterfly: 'img/butterfly.png',
+      net: 'https://i.imgur.com/Vk667Kj.png',
+      firefly: 'https://i.imgur.com/P6LWQyA.png'
+    };
+
     const correctWords = ['Солнце','Радуга','Цветок','Трава','День','Улыбка','Пчела','Лето','Тепло','Дружба'];
     const wrongWords = ['Ключ','Лампа','Окно','Ручка','Стол','Книга','Камень','Кофе','Часы','Город'];
 
     const playfield = document.getElementById('playfield');
     const net = document.getElementById('net');
+    const netImg = document.getElementById('netImg');
     const timeEl = document.getElementById('time');
     const correctEl = document.getElementById('correct');
     const wrongEl = document.getElementById('wrong');
     const firefly = document.getElementById('fireflyGlow');
+    const fireflyImg = document.getElementById('fireflyImg');
     const overlay = document.getElementById('overlay');
     const finalText = document.getElementById('finalText');
+
+    const bgInput = document.getElementById('bgInput');
+    const butterflyInput = document.getElementById('butterflyInput');
+    const netInput = document.getElementById('netInput');
+    const fireflyInput = document.getElementById('fireflyInput');
+
+    // Обновление изображений при вводе
+    function setupInputs() {
+      bgInput.addEventListener('change', e => {
+        images.background = e.target.value.trim() || images.background;
+        document.body.style.backgroundImage = `url('${images.background}')`;
+      });
+      butterflyInput.addEventListener('change', e => {
+        images.butterfly = e.target.value.trim() || images.butterfly;
+      });
+      netInput.addEventListener('change', e => {
+        images.net = e.target.value.trim() || images.net;
+        netImg.src = images.net;
+      });
+      fireflyInput.addEventListener('change', e => {
+        images.firefly = e.target.value.trim() || images.firefly;
+        fireflyImg.src = images.firefly;
+      });
+    }
 
     let butterflies = new Map();
     let nextId = 1;
@@ -106,7 +175,6 @@
     let timeLeft = GAME_TIME;
     let gameRunning = true;
 
-    let mouse = {x:0,y:0};
     window.addEventListener('mousemove', (e)=>{
       const rect = playfield.getBoundingClientRect();
       const nx = Math.max(rect.left, Math.min(e.clientX, rect.right));
@@ -128,7 +196,7 @@
       const caught = [];
       for(const [id, b] of butterflies){
         const dx = b.x - cx; const dy = b.y - cy; const dist = Math.sqrt(dx*dx+dy*dy);
-        if(dist < R){caught.push(id);}
+        if(dist < R){ caught.push(id); }
       }
       if(caught.length===0) return;
       const id = caught[0];
@@ -154,7 +222,7 @@
       const isCorrect = Math.random() < 0.5;
       const word = isCorrect ? sample(correctWords) : sample(wrongWords);
       const el = document.createElement('div'); el.className = 'butterfly'; el.dataset.id = id;
-      el.innerHTML = `<img src="img/butterfly.png" alt="Butterfly"><div class="label">${escapeHtml(word)}</div>`;
+      el.innerHTML = `<img src="${images.butterfly}" alt="Butterfly"><div class="label">${escapeHtml(word)}</div>`;
       const rect = playfield.getBoundingClientRect();
       const padding = 40;
       const x = rand(padding, rect.width - padding);
@@ -207,16 +275,16 @@
     function gameOver(){
       gameRunning = false;
       overlay.classList.add('show');
-      finalText.textContent = `За 60 секунд: ✅ ${correctCount} ❌ ${wrongCount}`;
+      finalText.textContent = `За ${GAME_TIME} секунд: ✅ ${correctCount} ❌ ${wrongCount}`;
     }
 
     function rand(a,b){ return Math.floor(Math.random()*(b-a+1))+a; }
     function randSign(){ return Math.random()<0.5? -1:1; }
     function sample(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
-    function escapeHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+    function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
+    setupInputs();
     startGame();
   </script>
 </body>
 </html>
-
