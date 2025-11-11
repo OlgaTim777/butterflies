@@ -29,29 +29,12 @@
     .counters{font-size:14px;color:#153649}
     .counters span{display:inline-block;margin-right:8px}
 
-    /* Панель настроек */
+    /* Панель скрыта */
     .settings {
-      position:absolute;
-      top:70px;
-      right:10px;
-      background:rgba(255,255,255,0.8);
-      border-radius:10px;
-      padding:8px 12px;
-      font-size:12px;
-      color:#123;
-      z-index:10;
-      box-shadow:0 4px 10px rgba(10,30,60,0.2);
-    }
-    .settings label {
-      display:block;
-      margin-top:4px;
-    }
-    .settings input {
-      width:220px;
-      font-size:11px;
-      border:1px solid #ccc;
-      border-radius:6px;
-      padding:2px 6px;
+      display:none;
+      visibility:hidden;
+      opacity:0;
+      pointer-events:none;
     }
 
     #playfield{position:absolute; left:8px; right:8px; top:72px; bottom:100px; background:transparent; border-radius:14px; overflow:hidden}
@@ -91,7 +74,7 @@
       </div>
     </div>
 
-    <!-- Панель настроек -->
+    <!-- Панель настроек (спрятана) -->
     <div class="settings">
       <label>Фон: <input type="text" id="bgInput" placeholder="https://i.imgur.com/heqNpdH.png"></label>
       <label>Бабочка: <input type="text" id="butterflyInput" placeholder="https://i.imgur.com/QA8Is2V.png"></label>
@@ -145,28 +128,18 @@
     const overlay = document.getElementById('overlay');
     const finalText = document.getElementById('finalText');
 
+    // Элементы настроек (невидимы)
     const bgInput = document.getElementById('bgInput');
     const butterflyInput = document.getElementById('butterflyInput');
     const netInput = document.getElementById('netInput');
     const fireflyInput = document.getElementById('fireflyInput');
 
-    // Обновление изображений при вводе
-    function setupInputs() {
-      bgInput.addEventListener('change', e => {
-        images.background = e.target.value.trim() || images.background;
-        document.body.style.backgroundImage = `url('${images.background}')`;
-      });
-      butterflyInput.addEventListener('change', e => {
-        images.butterfly = e.target.value.trim() || images.butterfly;
-      });
-      netInput.addEventListener('change', e => {
-        images.net = e.target.value.trim() || images.net;
-        netImg.src = images.net;
-      });
-      fireflyInput.addEventListener('change', e => {
-        images.firefly = e.target.value.trim() || images.firefly;
-        fireflyImg.src = images.firefly;
-      });
+    // Настройки можно менять из кода:
+    function setImages(newImages = {}) {
+      Object.assign(images, newImages);
+      document.body.style.backgroundImage = `url('${images.background}')`;
+      netImg.src = images.net;
+      fireflyImg.src = images.firefly;
     }
 
     let butterflies = new Map();
@@ -230,7 +203,6 @@
       el.style.left = (x - 44) + 'px';
       el.style.top = (y - 30) + 'px';
       playfield.appendChild(el);
-
       const obj = {id, el, x, y, vx: randSign()*rand(5,18)/100, vy: randSign()*rand(3,14)/100, wobble: Math.random()*0.02+0.01, angle: Math.random()*Math.PI*2, isCorrect, word};
       butterflies.set(id,obj);
     }
@@ -283,7 +255,6 @@
     function sample(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
     function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-    setupInputs();
     startGame();
   </script>
 </body>
